@@ -143,7 +143,8 @@ La diferencia es mínima, pero el primer ejemplo es potencialmente vulnerable y 
 ```csharp
 ExampleClass demo = new Ejemplo();
 example.Serializer = new JavaScriptSerializer(new SimpleTypeResolver());
-example.Deserialize("...[pwned]...");
+example.Deserialize("...[pwned]...");Explotación de vulnerabilidades de deserialización
+
 ```
 
 Este ejemplo está basado en la regla de análisis de código [CA2322](https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2322). El punto clave es que las librerías de deserialización no son inherentemente vulnerables; el contexto determina la exposición.
@@ -220,3 +221,5 @@ namespace Ejemplo
 
 Este patrón puede convertirse en un gadget que habilite ejecución remota de código.
 
+
+En unos dias continuo.... (**Explotación de vulnerabilidades de deserialización**)
