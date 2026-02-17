@@ -222,4 +222,85 @@ namespace Ejemplo
 Este patrón puede convertirse en un gadget que habilite ejecución remota de código.
 
 
+## Json? pero el destripador.
+
+Pero… ¿cómo lo encontramos?
+
+Es sencillo. Más arriba hice mención de los recursos más importantes durante esta investigación; solo tienes que hacer un:
+
+```bash
+grep -r "JsonConvert.DeserializeObject"
+````
+
+O en Windows (buscarías de forma muy general la función):
+
+```powershell
+PS C:\> Select-String -Pattern "\.Deserialize\(" -Path "*/*" -Include "*.cs"
+```
+
+Y como siempre, antes de cortar un árbol, ten afilada tu hacha. Así que cualquier resultado obtenido debemos verificar si esta llamada de deserialización es vulnerable o no.
+
+Con una búsqueda rápida encontraremos lo mencionado anteriormente en [Ataques JSON del viernes 13](https://www.blackhat.com/docs/us-17/thursday/us-17-Munoz-Friday-The-13th-JSON-Attacks-wp.pdf), libro blanco de Álvaro Muñoz y Oleksandr Mirosh. El artículo analiza varios serializadores Java y .NET que utilizan JSON y explora sus vulnerabilidades y cuándo son susceptibles. En la página 5 podemos ver el siguiente párrafo sobre Json.Net.
+
+Json.Net
+Project Site: [http://www.newtonsoft.com/json](http://www.newtonsoft.com/json)
+NuGet Downloads: 64,836,516
+
+Json.Net is probably the most popular JSON library for .NET. In its default configuration, it will not include type discriminators on the serialized data which prevents this type of attacks. However, developers can configure it to do so by either passing a JsonSerializerSettings instance with TypeNameHandling property set to a non-None value:
+
+```csharp
+var deser = JsonConvert.DeserializeObject<Expected>(json, new
+JsonSerializerSettings
+{
+ TypeNameHandling = TypeNameHandling.All
+});
+```
+
+Or by annotating a property of a type to be serialized with the [JsonProperty] annotation:
+
+```csharp
+[JsonProperty(TypeNameHandling = TypeNameHandling.All)]
+public object Body { get; set; }
+```
+
+Esto es de suma importancia en tu prueba porque, dependiendo del escenario, sabrás qué realizar o qué invalidar. En mi experiencia puedo comentar que, en la mayor parte de los casos, está configurado como "All". ¡Así que parece que esta llamada de deserialización debería ser vulnerable! ¿O no?...
+
+Algo que debes saber es que, en la mayoría de los casos, los desarrolladores cometen el error de utilizar una DLL. Esto es muy interesante porque me saldré unos segundos del tema para explicar este hermoso beneficio...
+
+## Evasión sin querer...
+
+¿Por qué crees que cuando estás escribiendo tu prueba de exploit como el que mostré arriba, necesitarás ver alguna salida en JSON o no? Para ello necesitarás una sección de código como esta:
+
+```csharp
+JsonSerializerSettings config = new JsonSerializerSettings()
+{
+    TypeNameHandling = TypeNameHandling.All
+};
+string salida = JsonConvert.SerializeObject(hma, config);
+Console.WriteLine(salida);
+```
+
+Tu entorno te dirá que está mal… porque Json.NET no es un paquete oficial de Microsoft y, por lo tanto, no está instalado de forma predeterminada.
+
+¿Cómo solucionarlo? Igual que un developer, jajaja…
+
+Tienes dos opciones. La primera es instalarlo con `Install-Package Newtonsoft.Json` desde PowerShell, claro ;).
+
+La opción más fácil es descargar la DLL y, dentro de Visual Studio, navegar a Project > Add Reference…, seleccionar Browse y encontrar tu\ruta\dedescarga\Newtonsoft.Json.dll.
+
+No diré mucho sobre la segunda opción, pero vuélvelo a leer… si logras ver esto… ¡PELIGROOOOO! (pero para el dev xD).
+
+¿Y la evasión?
+
+Claro. Lo importante: te expliqué cómo lo hace un dev. Ahora adivina: en una dependencia como Windows utilizan sus mejores AV/EDR… pero ¿qué crees? Existen procesos padres y componentes permitidos para su uso. Ese proceso padre puede generar procesos hijos y, si esto no se tiene mapeado correctamente… así es, podrás mandar a llamar la DLL y ejecutar código sin restricción desde un .exe (ACLARO QUE ES EVASIÓN… es decir, que ya estás dentro y buscas persistencia o estabilidad para no ser detectado).
+
+## Volviendo a web
+
+Muy bien, ya entendiste e hiciste tu primer exploit. ¡Felicidades! Ya pasaste lo más difícil. Ahora viene lo más cabrón: ¿dónde inyecto y qué inyecto? xD…
+
+Depende de tu escenario. Es decir, tienes que revisar el código y encontrar la sección que utilice algo de lo que mencioné en el documento. Te daré dos ejemplos que me he encontrado 2-3 veces.
+
+
+
+
 En unos dias continuo.... (**Explotación de vulnerabilidades de deserialización**)
