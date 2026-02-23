@@ -311,7 +311,7 @@ Para los dos últimos exploits, hemos utilizado el ObjectDataProvider gadget, pe
 
 ¿Que es?
 
-TypeConfuseDelegate es el nombre de un .NET Framework dispositivo de deserialización divulgado originalmente por James Forshaw en (Esta publicación del blog de Google Project Zero)[https://googleprojectzero.blogspot.com/2017/04/] desde mi punto de vista el mejor gadget que existe...
+TypeConfuseDelegate es el nombre de un .NET Framework dispositivo de deserialización divulgado originalmente por James Forshaw en [Esta publicación del blog de Google Project Zero](https://googleprojectzero.blogspot.com/2017/04/) desde mi punto de vista el mejor gadget que existe...
 
 Lo más importante que debemos saber:
 
@@ -329,7 +329,7 @@ Para los dos últimos exploits, hemos utilizado el ObjectDataProvider gadget, pe
 
 ¿Que es?
 
-TypeConfuseDelegate es el nombre de un .NET Framework dispositivo de deserialización divulgado originalmente por James Forshaw en (Esta publicación del blog de Google Project Zero)[https://googleprojectzero.blogspot.com/2017/04/] desde mi punto de vista el mejor gadget que existe...
+TypeConfuseDelegate es el nombre de un .NET Framework dispositivo de deserialización divulgado originalmente por James Forshaw en [Esta publicación del blog de Google Project Zero](https://googleprojectzero.blogspot.com/2017/04/) desde mi punto de vista el mejor gadget que existe...
 
 Lo más importante que debemos saber:
 
@@ -342,7 +342,7 @@ ComparisonComparer extiende la clase Comparer y tiene una propiedad interna Comp
 public delegate int Comparison<in T>(T x, T y);
 ````
 
-(Comparison)[[https://learn.microsoft.com/en-us/dotnet/api/system.comparison-1?view=net-7.0](https://learn.microsoft.com/en-us/dotnet/api/system.comparison-1?view=net-7.0)]
+[Comparison](https://learn.microsoft.com/en-us/dotnet/api/system.comparison-1?view=net-7.0)
 
 Aquí lo más importante está dentro del método Compare; vemos que invoca al delegado. Lo más razonable es que, si podemos crear un ComparisonComparer y de alguna manera delegar el Process.Start como el método comparison, entonces esto lo invocaría... eso marca la teoría, veamos más... Recordar que esto se expone a través del método Comparer.Create.
 
