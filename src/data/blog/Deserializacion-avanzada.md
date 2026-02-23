@@ -302,7 +302,58 @@ Muy bien, ya entendiste e hiciste tu primer exploit. ¡Felicidades! Ya pasaste l
 Depende de tu escenario. Es decir, tienes que revisar el código y encontrar la sección que utilice algo de lo que mencioné en el documento. Te daré dos ejemplos que me he encontrado 2-3 veces.
 
 ## XMLSerializer
-lunes 23 de feb.
+okay muy bien, la mejor opcion es hacerlo por base64 por algun parametro que deserialize, se que ya quieres verlo pero te platicare sobre dos cosas importantes antes de que te enfrentes a ello.
+
+## XML 
+
+esto es importante como todo.. pero sucede mucho especial con "XmlSerializer".
+
+Veamos un ejemplo publico:
+
+[DotNetNuke](https://www.dnnsoftware.com/), un popular .NET CMS, era vulnerable a un ataque de deserialización de manera muy similar hace unos años. Básicamente, si un atacante puede controlar el tipo con el que XmlSerializer se inicializa, entonces la deserialización es susceptible de explotación. ( esta informacion si quieres probar hacerlo haz APTLabs de HTB, hermoso prolab)
+
+[codigo](https://github.com/dnnsoftware/Dnn.Platform/blob/v9.9.1/DNN%20Platform/Library/Common/Utilities/XmlUtils.cs#L155)
+
+## Desarrollo?
+
+El terror de los prompt enginners [codigo de referencia](https://pentest-tools.com/blog/exploit-dotnetnuke-cookie-deserialization).
+
+Podríamos suponer que desarrollar el exploit es tan simple como serializar un ObjectDataProvider una vez más para conseguirlo command execution, pero lamentablemente esta vez no es tan sencillo. en el codigo de referencia observamos que si bien la carga útil XML contiene una ObjectDataProvider, está envuelto dentro de un ExpandedWrapperOfXamlReaderObjectDataProvider tag.
+
+Antes de empezar a copiar y pegar cualquier cosa a ciegas, intentemos entender qué está pasando aquí. Después de buscar un poco, vemos en la diapositiva "Overcomming XmlSerializer constraints" del [Ataques JSON del viernes 13](https://www.blackhat.com/docs/us-17/thursday/us-17-Munoz-Friday-The-13th-Json-Attacks.pdf) charla en BlackHat 2017 discutiendo XmlSerializer en el contexto de la vulnerabilidad DotNetNuke.
+
+La diapositiva menciona que los tipos con miembros de interfaz no se pueden serializar y que esto afecta el Process clase, que es con lo que estábamos usando ObjectDataProvider en el exploit anterior. Sin embargo, también menciona que podemos utilizar XamlReader.Load en lugar de conducir a remote code execution, así que veamos esto un poco más de cerca. Esencialmente, XamlReader es solo otro serializador con el que se puede utilizar .NET. No podremos serializar ObjectDataProvider directamente con XmlSerializer conseguir code execution, pero podemos serializar un XamlReader y luego pasar un serializado ObjectDataProvider to XamlReader lo que entonces debería dar como resultado code execution; SI NO ME ENTENDISTE ES UN POCO CONFUSO DEJAME EXPLICARLO MEJOR...
+
+Cuando se explota una vulnerabilidad de deserialización en .NET usando XAML, el problema es que no puedes serializar directamente clases como Process con XmlSerializer porque tienen miembros de interfaz, pero sí puedes hacerlo indirectamente mediante XamlReader.Load. Esto funciona porque XamlReader interpreta XAML como un lenguaje de instanciación de objetos: cuando carga un archivo XAML malicioso, crea objetos según lo definido en el marcado, y si ese XAML contiene un ObjectDataProvider que apunta a Process.Start("cmd","/c calc.exe"), el sistema ejecutará ese comando al procesarlo. Este método es poderoso porque XamlReader permite instanciar casi cualquier clase .NET y llamar a métodos estáticos o instanciados, lo que convierte datos XAML en código ejecutable, permitiendo RCE si la entrada no está validada. Por eso, cargar XAML de fuentes no confiables es extremadamente peligroso. 
+
+Reutilizando nuestro ObjectDataProvider desde antes, y luego agregando un par de líneas para serializar el objeto con [writerXaml](https://learn.microsoft.com/en-us/dotnet/api/system.windows.markup.xamlwriter?view=windowsdesktop-7.0) (la contraparte de XamlReader) obtenemos este código (asegúrate de agregar la referencia a System.Windows.Markup (from PresentationFramework) similar a como lo hicimos con ObjectDataProvider):
+
+```csharp
+using System;
+using System.Windows.Data;
+using System.Windows.Markup;
+
+namespace Xploit
+{
+    internal class Prueba
+    {
+        static void Main(string[] args)
+        {
+            ObjectDataProvider hma = new ObjectDataProvider();
+            hma.ObjectType = typeof(System.Diagnostics.Process);
+            hma.MethodParameters.Add("C:\\Windows\\System32\\cmd.exe");
+            hma.MethodParameters.Add("/c calc");
+            hma.MethodName = "Start";
+
+            string xaml = XamlWriter.Save(hma);
+            Console.WriteLine(xaml);
+        }
+    }
+}
+```
+Ahora que?... ejecutalo y tendras una salida en xml, sin olvidar la calculadora...
+
+continuara....xd
 
 
 ## Gadget TypeConfuseDelegate
