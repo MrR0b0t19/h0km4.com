@@ -12,7 +12,6 @@ tags:
   - Windows
   - Kernel
   - callbacks
-  - evasion
 description:
   Deshabilitando telemetria por Kernel - ¿Que hacer ya siendo NT SYSTEM?.
 ---
