@@ -1,7 +1,7 @@
 ---
 author: Arnold Morales
-pubDatetime: 2025-06-19T21:30:00Z
-modDatetime: 2025-06-19T21:37:45.934Z
+pubDatetime: 2025-10-10T21:30:00Z
+modDatetime: 2025-10-10T21:37:45.934Z
 title: EDR Internals-> Telemetría, Kernel y Evasión 
 slug: telemetria-bypass
 featured: true
