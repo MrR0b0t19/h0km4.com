@@ -1,7 +1,7 @@
 ---
 author: Arnold Morales
 pubDatetime: 2025-10-10T21:30:00Z
-modDatetime: 2025-10-10T23:37:00Z
+modDatetime: 2025-11-21T21:37:45.934Z
 title: EDR Internals: Telemetría, Kernel y Evasión 
 slug: telemetria-bypass
 featured: true
@@ -13,9 +13,8 @@ tags:
   - Kernel
   - callbacks
   - evasion
-  - internals
 description:
-  Desabilitando telemetria por Kernel - ¿Que hacer ya siendo NT SYSTEM?.
+  Deshabilitando telemetria por Kernel - ¿Que hacer ya siendo NT SYSTEM?.
 ---
 
 # EDR Internals: Telemetría, Kernel y Evasión
