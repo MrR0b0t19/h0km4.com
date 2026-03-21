@@ -30,28 +30,31 @@ Este dispositivo tiene diversos repositorios donde entrega software, recursos e 
 
 ### PCILeech??
 
-El dispositivo PCILeech puede conectarse a una interfaz PCI/PCIe (cómo lo dice su mismo nombre) y este interactúa con el mismo protocolo ¿Pero que lo conforma para poder trabajar a ese nivel? Hablar del protocolo PCIe no es un tema sencillo, es muy extendido y conocerlo por completo es conocer una rama entera, pero daremos una explicación resumida.
-
-¿Qué es un FPGA?
-
-Un FPGA o Field Programable Gate Array es un conjunto de circuitos integrados, como puede ser cualquier chip, que está pensado para entregarse al cliente sin configurarlo para que luego cada uno lo personalice y programe según la tarea que necesite que haga esa pieza, una vez esta ya se ha fabricado. Es como si fabricaran un procesador y luego lo configuraran en función de lo que se necesite, en vez de enfocarlo a una tarea o un uso específico durante el proceso de producción.
-
-Los FPGAs suelen contener diferentes bloques de procesamiento en su interior, y diferentes conectores para poder configurar los diferentes bloques de lógica, pudiendo hacer operaciones complejas o pudiendo funcionar como simples puertas lógicas. También dependiendo del módulo en su interior podremos encontrar memoria, especialmente en los módulos de lógica más complejos y avanzados. 
-
-Estos pequeños chips empezaron como dispositivos de memoria de solo lectura (ROM) programables y procesadores de lógica, los cuales se podían programar en fábrica, pero tenían una gran limitación, y es que esos módulos de lógica estaban ya fijados a las puertas lógicas y no se podían luego personalizar físicamente, solo pudiendo personalizarse mediante la programación. Años más tarde llegaría la compañía Altera, la cual, fundada en 1983 crearía el primer FPGA que permitía su reconfiguración, borrando la configuración anterior del dispositivo y permitiendo su reutilización.
+El dispositivo PCILeech puede conectarse a una interfaz PCI/PCIe (cómo lo dice su mismo nombre) y este interactúa con el mismo protocolo ¿Pero qué lo conforma para poder trabajar a ese nivel? Hablar del protocolo PCIe no es un tema sencillo, es muy extendido y conocerlo por completo es conocer una rama entera, pero daremos una explicación resumida.
 
 La PCILeech tiene un chip importante que le permite tener comunicación con el protocolo, este es un FPGA que son chips usados para el diseño a nivel silicio mediante la programación de hardware con lenguajes cómo VHDL, Verilog y SystemVerilog. Los CPUs o ASIC (cualquier chip encapsulado con pines) son productos ya fabricados con una funcionalidad ya especificada, pero las FPGA aún después de ser producidas pueden reprogramarse por el usuario dando total manipulación para cualquier uso.
 
+Bueno y te preguntarás qué es un FPGA, anteriormente mencionamos que se usan para diseño a nivel silicio, pero ¿Por qué? FPGA significa <b>Field Programmable Gate Arrays</b>, que en español se traduce a Matriz de Puertas Programables en Campo ¿Y qué tiene que ver su nombre? Bueno si eres electrónico has investigado sobre circuitos integrados, y en el ámbito digital todos los chips llegan a funcionar a base de compuertas lógicas y tú lector, si no sabes que son las compuertas logicas en eléctronica, son lo mismo que las operaciones lógicas como "OR", "AND" y otras más, pero a nivel físico fabricadas con un arreglo de circuitos en miniatura. Entonces, continuando con la FPGA, esta tiene miles de compuertas internamente, que pueden ser programadas y realizar casi cualquier trabajo que se desee, incluso realizar el funcionamiento de un procesador. 
+
 Aunque no todas las FPGAs puedan trabajar con PCI Express por el motivo de las velocidades de transmisión del protocolo, PCILeech integra una XILINX-7 que ya tiene una Capa Física para implementar el estandar de PCIe y soportar el protocolo, haciendolo eficiente para el trabajo de DMA.
 
-Aparte de tener la FPGA, tiene dos componentes para interfaz JTAG, uno para la programación de la FPGA (aunque no todos los modelos lo tienen) y otra para la comunicación entre FPGA y la computadora. Estos son chips FTDI que son componentes especializados en un funcionamiento de USB-Bridge que nos permiten interactuar con la FPGA integrada. Ya el resto del funcionamiento depende de la programación en SystemVerilog que se le haya dado a la FPGA, cada modelo de PCILeech encontramos su programación en el repositorio de [pcileech-fpga](https://github.com/ufrisk/pcileech-fpga).
+Aparte de tener la FPGA, tiene dos componentes para interfaz JTAG y serial, uno para la programación de la FPGA (aunque no todos los modelos lo tienen) y otra para la comunicación entre FPGA y la computadora. Estos son chips FTDI que son componentes especializados en un funcionamiento de USB-Bridge que nos permiten interactuar con la FPGA integrada. Ya el resto del funcionamiento depende de la programación en SystemVerilog que se le haya dado a la FPGA, cada modelo de PCILeech encontramos su programación en el repositorio de [pcileech-fpga](https://github.com/ufrisk/pcileech-fpga).
 
-### Funcionamiento
+### Cómo es que funciona a nivel hardware?
 
-El protocolo PCIe nos permite realizar lectura directamente a la memoria RAM, no por CPU sino por el mismo bus de PCIe como entramos directamente por el BUS esto nos permite entrar de manera directa al systema.
+El protocolo PCIe nos permite realizar lectura directamente a la memoria RAM, no por CPU sino por el mismo bus de PCIe. Pero ¿cómo funciona esto? Todo es por parte del protocolo PCI Express, el mismo protocolo permite que cualquier dispositivo físico (périferico) transfiera datos directamente a y desde la memoria del sistema sin intervención del CPU, esto para optimizar el rendimiento y reduciendo la carga del procesador. Tal vez en el desarrollo fue una buena idea, "¡Si! De esta manera evitamos que el procesador no se estresé tanto y reducimos tiempo de procesamiento"... bueno, para los pentesters fue oro.
 
-Este hardware usa [LeechCore](https://github.com/ufrisk/LeechCore) que para quienes no lo conozcan es una libreria utilizada para la adquisicion de memoria.
+La PCIeLeech se conecta a algún puerto de PCI Express disponible, el protocolo PCI Express lleva consigo paquetes TLP (Transaction Layer Packets) o paquetes de transacción que funcionan de esta manera: 
 
+1. Cuando se conecta la PCI Express, la PCILeech se vuelve un un Endpoint, el cual debe entregar la información debida para que se realice la comunicación, esto es posible gracias a librerias de SystemVerilog que ya implementan el proceso de conexión del protocolo.
+
+2. Una vez conectado realiza negociaciones de memoria con paquetes PCI TLP, estos indican que peticiones de memoria hacer o que peticiones de memoria escribir, todo posible gracias a que el Root Complex (Una parte del CPU) permite el manejo directo de memoria RAM. No es una falla, es parte del protocolo.
+
+3. Ya que se tiene la conexión a la FPGA manda información y esto se realiza por una conexión al FTDI, el USB-Bridge. Este se conecta a la computadora y el usuario ya tiene manera de leer e ingresar información a la FPGA.
+
+Este hardware usa [LeechCore](https://github.com/ufrisk/LeechCore) que para quienes no lo conozcan es una libreria utilizada para la adquisicion de memoria, esto funciona a nivel software donde interpreta los datos enviados por la PCILeech, y dependiendo de lo que se desee hacer, lee o escribe cierta sección de memoria, según la documentación puede hacerlo hasta 4GB de memoria.
+
+Para su manipulación existen diferentes recursos que nos entregan los creadores del propio [repositorio](https://github.com/ufrisk/pcileech) de PCILeech, donde incluso entregan software que funciona con Windows.
 
 ## Vulnerabilidad 
 
@@ -267,4 +270,3 @@ PIDHEX: debe ser el PID en hexadecimal
 # Conclusion 
 
 Bueno en mi investigacion hubo varias personas en paralelo que intentaron evadir el EDR y fracasaron, pero yo creo que el fracaso no existe si no que es una nueva oportunidad para aprender, talvez lo que les fallo a ellos fue que no conocen como funciona internamente windows o simplemente no pensaron fuera de la caja.
-
