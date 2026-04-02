@@ -2,7 +2,7 @@
 author: Adonai Diaz / Arnold Morales
 pubDatetime: 2025-06-19T21:30:00Z
 modDatetime: 2025-06-19T21:37:45.934Z
-title: Introducción a DMA por hardware
+title: DMA Avanzado por hardware
 slug: DMA-Introduction
 featured: true
 draft: false
