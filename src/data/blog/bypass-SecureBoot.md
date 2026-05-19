@@ -40,6 +40,22 @@ Al mismo tiempo, la explicación omite casi por completo el mecanismo real que c
 Desde la perspectiva de Secure Boot, la plataforma está diseñada para implementar una cadena de confianza clásica basada en hardware y, sobre el papel, lo hace correctamente.
 La ejecución comienza en BootROM inmutable, que ancla la confianza utilizando secretos fusionados y verifica la primera etapa mutable. Luego, el control fluye a través de las primeras etapas de arranque específicas de NVIDIA y hacia el entorno de firmware UEFI, donde se aplican políticas, configuraciones y lógica de verificación adicionales. El gestor de arranque verifica y carga el kernel de Linux, y el kernel transforma la ejecución en initrd, que es responsable de la inicialización temprana del espacio de usuario, incluido el descubrimiento del dispositivo, el descifrado y el montaje del sistema de archivos raíz. Sólo después de que se completa esta secuencia, el sistema gira hacia el sistema de archivos raíz final y controla manualmente el entorno operativo estándar.
 
+# El verdadero comienzo
+
+Nadamas como este subtitulo. lo que mostrare aqui es la carga directa o modificacion por nivel grub antes del sistema operativo, esto solo aplica a nivel linux.
+
+Comencemos...
+
+*Secure Boot* (o Arranque Seguro) es una función de seguridad integrada en el firmware UEFI de los ordenadores modernos que garantiza que el sistema arranque únicamente con software legítimo y firmado digitalmente.  Su objetivo principal es prevenir la ejecución de malware, rootkits o bootkits durante la fase inicial del encendido, antes de que se cargue el sistema operativo. 
+
+Para ello, el firmware verifica la firma digital de cada componente de la cadena de arranque (como el cargador del sistema operativo y los controladores).  Si el software no está certificado por una entidad de confianza o ha sido manipulado, el equipo bloquea el inicio para mantener la integridad del sistema
+
+*GRUB* (GNU GRand Unified Bootloader) es un cargador de arranque de software libre desarrollado por el Proyecto GNU que gestiona el proceso de inicio de los sistemas operativos, actuando como puente entre el firmware (BIOS o UEFI) y el núcleo del sistema.  Es el gestor de arranque predeterminado en la mayoría de las distribuciones de Linux (como Ubuntu, Debian, Fedora y Arch Linux) y permite seleccionar qué sistema operativo iniciar en equipos con configuración de doble arranque (por ejemplo, Windows y Linux). 
+
+Esto es lo unico que necesitas saber.. claro ser linuxero de corazon...
+
+# Progreso
+
 
 
 20 de mayo lo publico
